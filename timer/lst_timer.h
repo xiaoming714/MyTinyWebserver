@@ -27,6 +27,7 @@
 // 连接资源结构体成员需要用到定时器类
 // 需要前向声明
 class util_timer;
+
 // 连接资源
 struct client_data
 {
@@ -38,6 +39,7 @@ struct client_data
     util_timer *timer;
 };
 
+// 定时器类
 class util_timer
 {
 public:
@@ -56,6 +58,7 @@ public:
     util_timer *next;
 };
 
+// 定时器容器类
 class sort_timer_lst
 {
 public:
@@ -68,6 +71,7 @@ public:
     void tick();
 
 private:
+    // 添加定时器，内部调用私有成员add_timer
     void add_timer(util_timer *timer, util_timer *lst_head);
 
     util_timer *head;

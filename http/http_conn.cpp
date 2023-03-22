@@ -15,6 +15,7 @@ const char *error_500_title = "Internal Error";
 const char *error_500_form = "There was an unusual problem serving the request file.\n";
 
 locker m_lock;
+// 用户名和密码
 map<string, string> users;
 
 // 初始化数据库
