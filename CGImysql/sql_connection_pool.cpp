@@ -12,10 +12,11 @@ using namespace std;
 
 connection_pool::connection_pool()
 {
-	m_CurConn = 0;
-	m_FreeConn = 0;
+	m_CurConn = 0;	// 当前已使用连接
+	m_FreeConn = 0; // 当前空闲的连接数
 }
 
+// 单例模式返回线程池，在C++0x后如此写法线程安全
 connection_pool *connection_pool::GetInstance()
 {
 	static connection_pool connPool;
@@ -57,7 +58,6 @@ void connection_pool::init(string url, string User, string PassWord, string DBNa
 	}
 	// 将信号量初始化为最大连接次数
 	reserve = sem(m_FreeConn);
-
 	m_MaxConn = m_FreeConn;
 }
 
@@ -65,20 +65,20 @@ void connection_pool::init(string url, string User, string PassWord, string DBNa
 MYSQL *connection_pool::GetConnection()
 {
 	MYSQL *con = NULL;
-
+	// 如果连接池中没有连接，则返回NULL
 	if (0 == connList.size())
 		return NULL;
 	// 取出连接，信号量原子减1，为0则等待
 	reserve.wait();
-
+	// 访问临界资源加锁
 	lock.lock();
-
+	// 拿出一个连接
 	con = connList.front();
 	connList.pop_front();
 	// 这里的两个变量，并没有用到，非常鸡肋...
 	--m_FreeConn;
 	++m_CurConn;
-
+	// 离开临界区解锁
 	lock.unlock();
 	return con;
 }
@@ -86,15 +86,16 @@ MYSQL *connection_pool::GetConnection()
 // 释放当前使用的连接
 bool connection_pool::ReleaseConnection(MYSQL *con)
 {
+	// 判空
 	if (NULL == con)
 		return false;
-
+	// 访问临界资源枷锁
 	lock.lock();
-
+	// 将con放回连接池
 	connList.push_back(con);
 	++m_FreeConn;
 	--m_CurConn;
-
+	// 解锁
 	lock.unlock();
 	// 释放连接原子加1
 	reserve.post();
@@ -104,7 +105,6 @@ bool connection_pool::ReleaseConnection(MYSQL *con)
 // 销毁数据库连接池
 void connection_pool::DestroyPool()
 {
-
 	lock.lock();
 	if (connList.size() > 0)
 	{
@@ -120,7 +120,6 @@ void connection_pool::DestroyPool()
 		// 清空list
 		connList.clear();
 	}
-
 	lock.unlock();
 }
 
@@ -134,6 +133,7 @@ connection_pool::~connection_pool()
 {
 	DestroyPool();
 }
+
 // 双指针对MYSQL *con修改
 connectionRAII::connectionRAII(MYSQL **SQL, connection_pool *connPool)
 {

@@ -80,6 +80,7 @@ public:
     void init(int sockfd, const sockaddr_in &addr, char *, int, int, string user, string passwd, string sqlname);
     // 关闭http连接
     void close_conn(bool real_close = true);
+    // 子线程通过process函数对任务进行处理，分别完成报文解析和报文响应两个任务
     void process();
     // 读取浏览器端发来的全部数据
     bool read_once();
@@ -125,13 +126,15 @@ private:
     bool add_blank_line();
 
 public:
-    static int m_epollfd;
-    static int m_user_count;
+    static int m_epollfd;    // epoll句柄
+    static int m_user_count; // 用户数量
     MYSQL *mysql;
     int m_state; // 读为0, 写为1
 
 private:
+    // socket文件描述符
     int m_sockfd;
+    // socket地址
     sockaddr_in m_address;
     // 存储读取的请求报文数据
     char m_read_buf[READ_BUFFER_SIZE];

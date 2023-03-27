@@ -99,7 +99,7 @@ public:
         m_mutex.unlock();
         return true;
     }
-
+    // 返回当前元素个数
     int size()
     {
         int tmp = 0;
@@ -110,7 +110,7 @@ public:
         m_mutex.unlock();
         return tmp;
     }
-
+    // 返回队列最大容量
     int max_size()
     {
         int tmp = 0;
@@ -130,7 +130,6 @@ public:
         m_mutex.lock();
         if (m_size >= m_max_size)
         {
-
             m_cond.broadcast();
             m_mutex.unlock();
             return false;
@@ -201,14 +200,14 @@ public:
     }
 
 private:
-    locker m_mutex;
-    cond m_cond;
+    locker m_mutex; // 锁
+    cond m_cond;    // 条件变量
 
-    T *m_array;
-    int m_size;
-    int m_max_size;
-    int m_front;
-    int m_back;
+    T *m_array;     // 队列首地址
+    int m_size;     // 当前元素个数
+    int m_max_size; // 最大元素个数
+    int m_front;    // 当前队头
+    int m_back;     // 当前队尾
 };
 
 #endif

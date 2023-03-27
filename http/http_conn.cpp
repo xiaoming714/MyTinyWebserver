@@ -99,7 +99,7 @@ void modfd(int epollfd, int fd, int ev, int TRIGMode)
 int http_conn::m_user_count = 0;
 int http_conn::m_epollfd = -1;
 
-// 关闭连接，关闭一个连接，客户总量减一
+// 关闭一个连接，客户总量减一，参数默认为true
 void http_conn::close_conn(bool real_close)
 {
     if (real_close && (m_sockfd != -1))
@@ -117,8 +117,9 @@ void http_conn::init(int sockfd, const sockaddr_in &addr, char *root, int TRIGMo
 {
     m_sockfd = sockfd;
     m_address = addr;
-
+    // 将sockfd交给m_epollfd监听，此处说明一个新用户连接
     addfd(m_epollfd, sockfd, true, m_TRIGMode);
+    // 用户量加一
     m_user_count++;
 
     // 当浏览器出现连接重置时，可能是网站根目录出错或http响应格式出错或者访问的文件中内容完全为空

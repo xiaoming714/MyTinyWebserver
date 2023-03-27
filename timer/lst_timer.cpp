@@ -126,7 +126,7 @@ void sort_timer_lst::tick()
         {
             break;
         }
-        // 当前定时器到期，则调用回调函数，执行定时事件
+        // 当前定时器到期，则调用回调函数，执行定时事件，即关闭与客户的连接
         tmp->cb_func(tmp->user_data);
         // 将处理后的定时器从链表容器中删除，并重置头结点
         head = tmp->next;
@@ -233,6 +233,7 @@ void Utils::addsig(int sig, void(handler)(int), bool restart)
 void Utils::timer_handler()
 {
     m_timer_lst.tick();
+    // alarm用来设置信号，在m_TIMESLOT秒后发送给当前的进程
     alarm(m_TIMESLOT);
 }
 
