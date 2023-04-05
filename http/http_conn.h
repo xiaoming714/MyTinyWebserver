@@ -62,7 +62,7 @@ public:
         FORBIDDEN_REQUEST, // 请求资源禁止访问，没有读取权限；跳转process_write完成响应报文
         FILE_REQUEST,      // 请求资源可以正常访问；跳转process_write完成响应报文
         INTERNAL_ERROR,    // 服务器内部错误，该结果在主状态机逻辑switch的default下，一般不会触发
-        CLOSED_CONNECTION
+        CLOSED_CONNECTION  // 客户端已经关闭连接
     };
     enum LINE_STATUS
     {                // 从状态机
@@ -142,7 +142,7 @@ private:
     int m_read_idx;
     // m_read_buf读取的位置m_checked_idx
     int m_checked_idx;
-    // m_read_buf中已经解析的字符个数
+    // m_read_buf中已经解析的字符个数/当前正在解析的行的起始位置
     int m_start_line;
     // 存储发出的响应报文数据
     char m_write_buf[WRITE_BUFFER_SIZE];
@@ -154,12 +154,12 @@ private:
     METHOD m_method;
     // 以下为解析请求报文中对应的6个变量
     // 存储读取文件的名称
-    char m_real_file[FILENAME_LEN];
-    char *m_url;
-    char *m_version;
-    char *m_host;
-    int m_content_length;
-    bool m_linger;
+    char m_real_file[FILENAME_LEN]; // 文件
+    char *m_url;                    // url
+    char *m_version;                // http版本
+    char *m_host;                   // 主机地址
+    int m_content_length;           // 报文长度
+    bool m_linger;                  // 是否保持连接
 
     char *m_file_address; // 读取服务器上的文件地址
     struct stat m_file_stat;

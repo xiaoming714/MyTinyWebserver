@@ -73,10 +73,10 @@ void WebServer::trig_mode()
 
 void WebServer::log_write()
 {
-    // m_close_log为关闭日志
+    // m_close_log==1为关闭日志
     if (0 == m_close_log)
     {
-        // 初始化日志，m_log_write=1为异步
+        // 初始化日志，m_log_write==1为异步
         if (1 == m_log_write)
             Log::get_instance()->init("./ServerLog", m_close_log, 2000, 800000, 800);
         else
@@ -90,7 +90,6 @@ void WebServer::sql_pool()
     m_connPool = connection_pool::GetInstance();
     // MySQL默认端口号3306
     m_connPool->init("localhost", m_user, m_passWord, m_databaseName, 3306, m_sql_num, m_close_log);
-
     // 初始化数据库读取表
     users->initmysql_result(m_connPool);
 }
@@ -101,6 +100,7 @@ void WebServer::thread_pool()
     m_pool = new threadpool<http_conn>(m_actormodel, m_connPool, m_thread_num);
 }
 
+// 创建连接基础设施
 void WebServer::eventListen()
 {
     // 网络编程基础步骤
@@ -123,11 +123,11 @@ void WebServer::eventListen()
     struct sockaddr_in address;
     bzero(&address, sizeof(address));
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_ANY);
+    address.sin_addr.s_addr = htonl(INADDR_ANY); // INADDR_ANY表示任意地址，监听0.0.0.0地址 socket只绑定端口让路由表决定传到哪个ip
     address.sin_port = htons(m_port);
 
     int flag = 1;
-    setsockopt(m_listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+    setsockopt(m_listenfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)); // 设置端口复用
     ret = bind(m_listenfd, (struct sockaddr *)&address, sizeof(address));
     assert(ret >= 0);
     ret = listen(m_listenfd, 5);
@@ -135,8 +135,6 @@ void WebServer::eventListen()
 
     utils.init(TIMESLOT);
 
-    // epoll创建内核事件表
-    epoll_event events[MAX_EVENT_NUMBER];
     m_epollfd = epoll_create(5);
     assert(m_epollfd != -1);
 
@@ -229,6 +227,7 @@ bool WebServer::dealclinetdata()
                 LOG_ERROR("%s:errno is:%d", "accept error", errno);
                 break;
             }
+            // 连接数超了
             if (http_conn::m_user_count >= MAX_FD)
             {
                 utils.show_error(connfd, "Internal server busy");

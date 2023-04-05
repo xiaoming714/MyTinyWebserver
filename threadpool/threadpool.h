@@ -8,6 +8,7 @@
 #include "../lock/locker.h"
 #include "../CGImysql/sql_connection_pool.h"
 
+// 线程池类，为了提高复用性定义为模板类
 template <typename T>
 class threadpool
 {
@@ -29,7 +30,7 @@ private:
     pthread_t *m_threads;        // 描述线程池的数组，其大小为m_thread_number
     std::list<T *> m_workqueue;  // 请求队列
     locker m_queuelocker;        // 保护请求队列的互斥锁
-    sem m_queuestat;             // 是否有任务需要处理
+    sem m_queuestat;             // 信号量用来判断是否有任务需要处理
     connection_pool *m_connPool; // 数据库
     int m_actor_model;           // 模型切换
 };
@@ -107,6 +108,7 @@ bool threadpool<T>::append_p(T *request)
 template <typename T>
 void *threadpool<T>::worker(void *arg)
 {
+    // worker是静态成员函数，无法直接访问类成员pool，此处的arg创建线程时传this
     threadpool *pool = (threadpool *)arg;
     pool->run();
     return pool;
@@ -114,9 +116,10 @@ void *threadpool<T>::worker(void *arg)
 template <typename T>
 void threadpool<T>::run()
 {
-    // 死循环一直工作
+    // 死循环一直工作，也可以在成员中设置m_stop来决定线程是否停止
     while (true)
-    { // 等待条件变量
+    {
+        // 等待条件变量
         m_queuestat.wait();
         // 上锁
         m_queuelocker.lock();
@@ -166,6 +169,7 @@ void threadpool<T>::run()
         else
         {
             connectionRAII mysqlcon(&request->mysql, m_connPool);
+            // 执行处理
             request->process();
         }
     }

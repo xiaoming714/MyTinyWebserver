@@ -18,7 +18,7 @@ locker m_lock;
 // 用户名和密码
 map<string, string> users;
 
-// 初始化数据库
+// 将数据库中的用户名和密码载入到服务器的map中来
 void http_conn::initmysql_result(connection_pool *connPool)
 {
     // 先从连接池中取一个连接
@@ -26,22 +26,22 @@ void http_conn::initmysql_result(connection_pool *connPool)
     connectionRAII mysqlcon(&mysql, connPool);
 
     // 在user表中检索username，passwd数据，浏览器端输入
-    if (mysql_query(mysql, "SELECT username,passwd FROM user"))
+    if (mysql_query(mysql, "SELECT username,passwd FROM user")) // 查询数据库中是否有username和passwd，成功返回0，失败返回非零值
     {
         LOG_ERROR("SELECT error:%s\n", mysql_error(mysql));
     }
 
     // 从表中检索完整的结果集
-    MYSQL_RES *result = mysql_store_result(mysql);
+    MYSQL_RES *result = mysql_store_result(mysql); // 将数据库中查询(mysql_query)得到的结果(集合)存放在MySQL_RES结构中
 
     // 返回结果集中的列数
-    int num_fields = mysql_num_fields(result);
+    int num_fields = mysql_num_fields(result); // 返回结果集中的列的数目
 
     // 返回所有字段结构的数组
     MYSQL_FIELD *fields = mysql_fetch_fields(result);
 
     // 从结果集中获取下一行，将对应的用户名和密码，存入map中
-    while (MYSQL_ROW row = mysql_fetch_row(result))
+    while (MYSQL_ROW row = mysql_fetch_row(result)) // 返回结果集(MYSQL_RES)的当前行的结果
     {
         string temp1(row[0]);
         string temp2(row[1]);
@@ -65,12 +65,12 @@ void addfd(int epollfd, int fd, bool one_shot, int TRIGMode)
     event.data.fd = fd;
 
     if (1 == TRIGMode)
-        event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+        event.events = EPOLLIN | EPOLLET | EPOLLRDHUP; // EPOLLRDHUP：对端异常断开，底层处理
     else
         event.events = EPOLLIN | EPOLLRDHUP;
 
     if (one_shot)
-        event.events |= EPOLLONESHOT;
+        event.events |= EPOLLONESHOT; // EPOLLONESHOT：操作系统最多触发其中一个可读，可写或异常事件，且只能触发一次
     epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
     setnonblocking(fd);
 }
@@ -82,7 +82,7 @@ void removefd(int epollfd, int fd)
     close(fd);
 }
 
-// 将事件重置为EPOLLONESHOT
+// 将事件重置为EPOLLONESHOT，确保下一次可读时，EPOLLIN事件能被触发
 void modfd(int epollfd, int fd, int ev, int TRIGMode)
 {
     epoll_event event;
@@ -178,7 +178,7 @@ http_conn::LINE_STATUS http_conn::parse_line()
             // 下一个字符达到了buffer结尾，则接收不完整，需要继续接收
             if ((m_checked_idx + 1) == m_read_idx)
                 return LINE_OPEN;
-            // 下一个字符是\n，将\r\n改为\0\0
+            // 下一个字符是\n，将\r\n改为\0\0作为字符串结束符
             else if (m_read_buf[m_checked_idx + 1] == '\n')
             {
                 m_read_buf[m_checked_idx++] = '\0';
@@ -210,6 +210,7 @@ http_conn::LINE_STATUS http_conn::parse_line()
 // 非阻塞ET工作模式下，需要一次性将数据读完
 bool http_conn::read_once()
 {
+    // 此处的处理并不健壮
     if (m_read_idx >= READ_BUFFER_SIZE)
     {
         return false;
@@ -236,13 +237,15 @@ bool http_conn::read_once()
         while (true)
         {
             bytes_read = recv(m_sockfd, m_read_buf + m_read_idx, READ_BUFFER_SIZE - m_read_idx, 0);
+            // 出错
             if (bytes_read == -1)
             {
-                // 非阻塞ET模式下，需要一次性将数据读完
+                // 非阻塞ET模式下，需要一次性将数据读完，以下判断表示数据已经读完了
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
                     break;
                 return false;
             }
+            // 对方关闭连接
             else if (bytes_read == 0)
             {
                 return false;
@@ -265,7 +268,7 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     {
         return BAD_REQUEST;
     }
-    // 将该位置改为\0，用于将前面数据取出
+    // 将该位置改为\0，用于将前面数据取出，字符串结束标志
     *m_url++ = '\0';
     // 取出数据，并通过与GET和POST比较，以确定请求方式
     char *method = text;
@@ -300,7 +303,7 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     if (strncasecmp(m_url, "http://", 7) == 0)
     {
         m_url += 7;
-        m_url = strchr(m_url, '/');
+        m_url = strchr(m_url, '/'); // 为了将IP:port过滤掉
     }
     // 同样增加https情况
     if (strncasecmp(m_url, "https://", 8) == 0)
@@ -327,16 +330,17 @@ http_conn::HTTP_CODE http_conn::parse_headers(char *text)
     // 判断是空行还是请求头
     if (text[0] == '\0')
     {
-        // 判断是GET还是POST请求
+        // 如果HTTP请求有消息体，则还是需要读取m_content_length字节的消息体，且报文为post请求
         if (m_content_length != 0)
         {
             // POST需要跳转到消息体处理状态
             m_check_state = CHECK_STATE_CONTENT;
             return NO_REQUEST;
         }
+        // 否则说明我们已经得到了一个完整的请求
         return GET_REQUEST;
     }
-    // 解析请求头部连接字段
+    // 解析请求头部保持连接字段
     else if (strncasecmp(text, "Connection:", 11) == 0)
     {
         text += 11;
@@ -365,12 +369,12 @@ http_conn::HTTP_CODE http_conn::parse_headers(char *text)
     }
     else
     {
-        LOG_INFO("oop!unknow header: %s", text);
+        LOG_INFO("oop! unknow header: %s", text);
     }
     return NO_REQUEST;
 }
 
-// 判断http请求是否被完整读入
+// 判断http请求是否被完整读入，此处并没有真正地解析请求体
 http_conn::HTTP_CODE http_conn::parse_content(char *text)
 {
     // 判断buffer中是否读取了消息体
@@ -390,10 +394,11 @@ http_conn::HTTP_CODE http_conn::process_read()
     LINE_STATUS line_status = LINE_OK;
     HTTP_CODE ret = NO_REQUEST;
     char *text = 0;
-    // 此处循环第二个条件是为了判断GET请求
-    // 第一个条件是因为POST请求体结束没有任何字符，所以不能使用从状态机的状态，进而只能使用主状态机的状态作为循环入口的条件
-    while ((m_check_state == CHECK_STATE_CONTENT && line_status == LINE_OK) || ((line_status = parse_line()) == LINE_OK))
+    // 此处循环第一个条件是为了判断GET请求
+    // 第二个条件是因为POST请求体结束没有任何字符，所以不能使用从状态机的状态，进而只能使用主状态机的状态作为循环入口的条件
+    while (((line_status = parse_line()) == LINE_OK) || (m_check_state == CHECK_STATE_CONTENT && line_status == LINE_OK))
     {
+        // 获取一行数据
         text = get_line();
         // m_start_line是每一个数据行在m_read_buf中的起始位置
         // m_checked_idx表示从状态机在m_read_buf中读取的位置
@@ -443,7 +448,7 @@ http_conn::HTTP_CODE http_conn::process_read()
 
 http_conn::HTTP_CODE http_conn::do_request()
 {
-    // 将初始化的m_real_file赋值为网站根目录
+    // 将初始化的m_real_file赋值为网站根目录，doc_root为网站根目录
     strcpy(m_real_file, doc_root);
     int len = strlen(doc_root);
     // printf("m_url:%s\n", m_url);
@@ -572,6 +577,7 @@ http_conn::HTTP_CODE http_conn::do_request()
     close(fd);
     return FILE_REQUEST;
 }
+
 void http_conn::unmap()
 {
     if (m_file_address)

@@ -45,7 +45,6 @@ public:
         m_mutex.lock();
         if (m_array != NULL)
             delete[] m_array;
-
         m_mutex.unlock();
     }
     // 判断队列是否满了
@@ -103,10 +102,8 @@ public:
     int size()
     {
         int tmp = 0;
-
         m_mutex.lock();
         tmp = m_size;
-
         m_mutex.unlock();
         return tmp;
     }
@@ -126,7 +123,6 @@ public:
     // 若当前没有线程等待条件变量,则唤醒无意义
     bool push(const T &item)
     {
-
         m_mutex.lock();
         if (m_size >= m_max_size)
         {
