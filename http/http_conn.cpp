@@ -394,9 +394,9 @@ http_conn::HTTP_CODE http_conn::process_read()
     LINE_STATUS line_status = LINE_OK;
     HTTP_CODE ret = NO_REQUEST;
     char *text = 0;
-    // 此处循环第一个条件是为了判断GET请求
-    // 第二个条件是因为POST请求体结束没有任何字符，所以不能使用从状态机的状态，进而只能使用主状态机的状态作为循环入口的条件
-    while (((line_status = parse_line()) == LINE_OK) || (m_check_state == CHECK_STATE_CONTENT && line_status == LINE_OK))
+    // 此处循环第二个条件是为了判断GET请求
+    // 第一个条件是因为POST请求体结束没有任何字符，所以不能使用从状态机的状态，进而只能使用主状态机的状态作为循环入口的条件
+    while ((m_check_state == CHECK_STATE_CONTENT && line_status == LINE_OK) || ((line_status = parse_line()) == LINE_OK))
     {
         // 获取一行数据
         text = get_line();
